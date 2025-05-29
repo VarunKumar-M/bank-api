@@ -1,41 +1,49 @@
-from .database import SessionLocal, engine
-from .models import Bank, Branch
-from .database import Base
+import csv
+import os
+from sqlalchemy.orm import Session
+from app.database import SessionLocal, engine
+from app.models import Bank, Branch, Base
 
-# Create tables
 Base.metadata.create_all(bind=engine)
 
-# Open DB session
-db = SessionLocal()
+def seed_data():
+    csv_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "bank_branches.csv")
+    db: Session = SessionLocal()
 
-# Sample Banks and Branches
-hdfc = Bank(name="HDFC Bank")
-sbi = Bank(name="State Bank of India")
+    banks_dict = {}
+    with open(csv_path, newline='', encoding='utf-8') as csvfile:
+        reader = csv.DictReader(csvfile)
 
-hdfc_branch = Branch(
-    ifsc="HDFC0001234",
-    branch="MG Road",
-    address="123 MG Road",
-    city="Bangalore",
-    district="Bangalore Urban",
-    state="Karnataka",
-    bank=hdfc
-)
+        for row in reader:
+            bank_name = row["bank_name"]
+            bank_id = int(row["bank_id"])
 
-sbi_branch = Branch(
-    ifsc="SBIN0005678",
-    branch="Indiranagar",
-    address="456 Indiranagar",
-    city="Bangalore",
-    district="Bangalore Urban",
-    state="Karnataka",
-    bank=sbi
-)
+            # Add bank only if not already added
+            if bank_id not in banks_dict:
+                bank = Bank(id=bank_id, name=bank_name)
+                db.add(bank)
+                banks_dict[bank_id] = bank
 
-# Add to session
-db.add_all([hdfc, sbi, hdfc_branch, sbi_branch])
-db.commit()
+        db.commit()
 
-print("✅ Sample data added.")
+        csvfile.seek(0)
+        next(reader)  # Skip header again
 
-db.close()
+        for row in reader:
+            branch = Branch(
+                ifsc=row["ifsc"],
+                bank_id=int(row["bank_id"]),
+                branch=row["branch"],
+                address=row["address"],
+                city=row["city"],
+                district=row["district"],
+                state=row["state"]
+            )
+            db.add(branch)
+
+        db.commit()
+        db.close()
+        print("✅ Data seeded successfully.")
+
+if __name__ == "__main__":
+    seed_data()

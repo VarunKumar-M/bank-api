@@ -1,9 +1,9 @@
 from fastapi import FastAPI
-from .database import Base, engine
-from .routers import bank
+from app.database import Base, engine
+from app.routers import bank_routes
+
+app = FastAPI()
 
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Bank API")
-
-app.include_router(bank.router)
+app.include_router(bank_routes.router)
